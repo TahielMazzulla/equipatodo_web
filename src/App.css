@@ -1,0 +1,105 @@
+/* App.css EQUIPATODO ESTILO BASE */
+:root {
+  --color-principal: #1D41A5;
+  --color-secundario: #E5E5E5;
+  --color-blanco: #fff;
+  --color-gris-texto: #888;
+  --color-acento: #FF72B1; /* Para detalles o iconos */
+  --borde-radius: 14px;
+  --fuente-principal: 'Montserrat', 'Poppins', 'Roboto', Arial, sans-serif;
+}
+
+body {
+  font-family: var(--fuente-principal);
+  background: var(--color-blanco);
+  margin: 0;
+  color: #232323;
+}
+
+.header-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-principal);
+  color: var(--color-blanco);
+  padding: 16px 28px;
+  border-bottom: 2.5px solid var(--color-secundario);
+}
+
+.header-navbar .logo-area {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-navbar .logo-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 100%;
+  background: var(--color-blanco);
+  object-fit: contain;
+  border: 2.5px solid var(--color-secundario);
+}
+
+.header-navbar .titulo-app {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-left: 8px;
+}
+
+.panel-content {
+  max-width: 980px;
+  margin: 30px auto;
+  padding: 20px;
+}
+
+.tarjeta, .box, .card {
+  background: var(--color-blanco);
+  border-radius: var(--borde-radius);
+  box-shadow: 0 2px 12px #1d41a51c;
+  border: 1.5px solid var(--color-principal);
+  margin-bottom: 28px;
+  padding: 18px 20px;
+}
+
+.boton-principal {
+  background: var(--color-principal);
+  color: var(--color-blanco);
+  border: none;
+  border-radius: var(--borde-radius);
+  padding: 10px 26px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-right: 12px;
+  box-shadow: 0 2px 6px #1d41a526;
+  transition: background 0.15s;
+}
+
+.boton-principal:hover {
+  background: #15317a;
+}
+
+.boton-secundario {
+  background: var(--color-blanco);
+  color: var(--color-principal);
+  border: 1.5px solid var(--color-principal);
+  border-radius: var(--borde-radius);
+  padding: 10px 22px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.texto-gris {
+  color: var(--color-secundario);
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+hr {
+  border: none;
+  border-bottom: 1.5px solid #e5e5e5;
+  margin: 25px 0;
+}
