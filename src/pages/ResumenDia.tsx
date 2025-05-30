@@ -22,12 +22,18 @@ interface Cliente {
   cobrador?: string;
 }
 
+function soloFechasUnicas(arr: string[]): string[] {
+
+  return Array.from(new Set(arr)).sort((a, b) => b.localeCompare(a));
+}
+
 export default function ResumenDia() {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(() => {
     const hoy = new Date().toISOString().split("T")[0];
     return hoy;
   });
+  const [fechasDisponibles, setFechasDisponibles] = useState<string[]>([]);
 
   const resumenRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +80,7 @@ const mesFin = finMes.toISOString().split("T")[0];
   async function fetchPagosPorFecha() {
     const clientesSnap = await getDocs(collection(db, "clientes"));
     const todosLosPagos: Pago[] = [];
+    const todasLasFechas: string[] = [];
 
     for (const clienteDoc of clientesSnap.docs) {
       const clienteId = clienteDoc.id;
@@ -84,14 +91,16 @@ const mesFin = finMes.toISOString().split("T")[0];
         const pagosSnap = await getDocs(collection(db, "clientes", clienteId, "ventas", ventaDoc.id, "pagos"));
         for (const pagoDoc of pagosSnap.docs) {
           const pago = pagoDoc.data() as Pago;
+          todasLasFechas.push(pago.fecha); // <-- guardamos todas las fechas!
           if (pago.fecha === fechaSeleccionada) {
-  todosLosPagos.push({ ...pago, cobrador });
-}
+            todosLosPagos.push({ ...pago, cobrador });
+          }
         }
       }
     }
 
     setPagos(todosLosPagos);
+    setFechasDisponibles(soloFechasUnicas(todasLasFechas));
   }
 
   fetchPagosPorFecha();
@@ -162,6 +171,44 @@ const transferencia = typeof pago.transferencia === "number" ? pago.transferenci
 >
   Exportar a PDF
 </button>
+<div style={{
+  display: "flex",
+  gap: 10,
+  marginBottom: 20,
+  overflowX: "auto",
+  paddingBottom: 8,
+  maxWidth: 700,
+  marginLeft: "auto",
+  marginRight: "auto",
+  whiteSpace: "nowrap"
+}}>
+  {fechasDisponibles.length > 0 ? (
+    fechasDisponibles.map(fecha => (
+      <button
+        key={fecha}
+        onClick={() => setFechaSeleccionada(fecha)}
+        style={{
+          padding: "6px 15px",
+          borderRadius: 6,
+          border: fecha === fechaSeleccionada ? `2px solid ${AZUL_EQUIPATODO}` : "1px solid #bbb",
+          background: fecha === fechaSeleccionada ? AZUL_EQUIPATODO : "#fff",
+          color: fecha === fechaSeleccionada ? "#fff" : AZUL_EQUIPATODO,
+          fontWeight: 700,
+          fontFamily: FUENTE_EQUIPATODO,
+          cursor: "pointer",
+          boxShadow: fecha === fechaSeleccionada ? "0 1px 8px #29489922" : "none",
+          marginRight: 6,
+          minWidth: 110,
+          whiteSpace: "nowrap"
+        }}
+      >
+        {fecha}
+      </button>
+    ))
+  ) : (
+    <span style={{ color: "#999", fontStyle: "italic" }}>No hay días anteriores</span>
+  )}
+</div>
       <div
   ref={resumenRef}
   style={{
