@@ -274,6 +274,33 @@ useEffect(() => {
     : ` ${porcentajeCobranza}% (${resumenDiario.total.toLocaleString()} / ${totalCobrarHoy.toLocaleString()})`}
 </p>
 
+<div style={{
+  margin: "30px auto 22px auto",
+  maxWidth: 420,
+  display: "flex",
+  justifyContent: "center"
+}}>
+  <input
+    type="text"
+    value={busqueda}
+    onChange={e => setBusqueda(e.target.value)}
+    placeholder="Buscar cliente por nombre..."
+    style={{
+      width: "100%",
+      padding: "12px 18px",
+      borderRadius: 8,
+      border: "1.5px solid #29489999",
+      outline: "none",
+      fontSize: 17,
+      fontFamily: "'League Spartan', Arial, sans-serif",
+      color: "#294899",
+      background: "#f8faff",
+      boxShadow: "0 2px 8px #29489918",
+      marginBottom: 0
+    }}
+  />
+</div>
+
     {/* Resto de tu contenido: lista de clientes, etc */}
       {clientes.length === 0 ? (
         <p>No tienes clientes asignados.</p>
