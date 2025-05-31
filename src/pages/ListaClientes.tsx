@@ -20,6 +20,11 @@ interface Cliente {
 export default function ListaClientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  // Nuevo: Estado para filtro de cobrador
+const [cobradorFiltro, setCobradorFiltro] = useState("");
+const cobradoresUnicos = Array.from(
+  new Set(clientes.map(c => c.cobrador).filter(Boolean))
+);
   const [pagosPorCliente, setPagosPorCliente] = useState<Record<string, { estados: string[] }>>({});
   const [estadoPagoPorVenta, setEstadoPagoPorVenta] = useState<Record<string, string>>({});
   const [estadoPagos, setEstadoPagos] = useState<Record<string, string[]>>({});
@@ -196,6 +201,28 @@ setPagosPorCliente(pagosCliente);
   justifyContent: "center",
   margin: "20px 0"
 }}>
+  <select
+  value={cobradorFiltro}
+  onChange={e => setCobradorFiltro(e.target.value)}
+  style={{
+    width: "100%",
+    maxWidth: 350,
+    padding: "10px 14px",
+    borderRadius: 9,
+    border: "1.8px solid #2548B1",
+    fontSize: 16,
+    fontFamily: "League Spartan, Montserrat, Arial, sans-serif",
+    marginBottom: 12,
+    color: "#294899",
+    background: "#f4f6fc",
+    boxShadow: "0 2px 10px #2548b110",
+  }}
+>
+  <option value="">Todos los cobradores</option>
+  {cobradoresUnicos.map(cobrador => (
+    <option key={cobrador} value={cobrador}>{cobrador}</option>
+  ))}
+</select>
   <input
     type="text"
     placeholder="Buscar cliente por nombre..."
@@ -218,9 +245,11 @@ setPagosPorCliente(pagosCliente);
       {clientes.length > 0 ? (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {clientes
-            .filter((cliente) =>
-              (cliente.nombre || "").toLowerCase().includes(busqueda.toLowerCase())
-            )
+            .filter((cliente) => {
+  const coincideNombre = (cliente.nombre || "").toLowerCase().includes(busqueda.toLowerCase());
+  const coincideCobrador = cobradorFiltro === "" || cliente.cobrador === cobradorFiltro;
+  return coincideNombre && coincideCobrador;
+})
             .map((cliente) => (
               <li key={cliente.id} style={{ marginBottom: 12 }}>
                 <Link to={`/cliente/${cliente.id}`} style={{ textDecoration: "none" }}>

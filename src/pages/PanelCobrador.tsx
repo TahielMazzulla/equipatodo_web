@@ -177,54 +177,66 @@ useEffect(() => {
   let totalCobrar = 0;
 
   // Sumá lo que cobró hoy
-  for (const pagos of Object.values(pagosPorVenta)) {
-    for (const pago of pagos) {
-      if (pago.fecha === hoyStr) {
-        totalEfectivo += pago.efectivo || 0;
-        totalTransferencia += pago.transferencia || 0;
+  // Sumá lo que cobró hoy
+for (const pagos of Object.values(pagosPorVenta)) {
+  for (const pago of pagos) {
+    if (pago.fecha === hoyStr) {
+      totalEfectivo += pago.efectivo || 0;
+      totalTransferencia += pago.transferencia || 0;
+    }
+  }
+}
+
+// Calculá lo que debería cobrar hoy (acumula solo días hábiles, lunes a sábado)
+// Calculá lo que debería cobrar hoy (solo lunes a sábado, nunca domingos)
+for (const ventas of Object.values(ventasPorCliente)) {
+  for (const venta of ventas) {
+    if (!venta.frecuencia || !venta.fechaInicio) continue;
+
+    const fechaInicio = new Date(venta.fechaInicio);
+    const fechaFin = venta.fechaFin ? new Date(venta.fechaFin) : null;
+
+    // Solo ventas activas
+    if (hoy < fechaInicio) continue;
+    if (fechaFin && hoy > fechaFin) continue;
+
+    // Diaria: Suma solo de lunes a sábado
+    if ((venta.frecuencia === "diaria" || venta.frecuencia === "diario") && hoy.getDay() !== 0) {
+      totalCobrar += venta.valorDiario;
+    }
+
+    // Semanal: SOLO el día de cobro semanal (el mismo día de la semana que fecha de inicio)
+    else if (venta.frecuencia === "semanal") {
+      if (hoy.getDay() === fechaInicio.getDay()) {
+        totalCobrar += venta.valorDiario * 6; // 6 cuotas acumuladas para la semana (lunes a sábado)
+      }
+    }
+
+    // Quincenal: SOLO el día de cobro quincenal (cada 15 días desde inicio)
+    else if (venta.frecuencia === "quincenal") {
+      const diffDays = Math.floor((hoy.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays % 15 === 0) {
+        totalCobrar += venta.valorDiario * 12; // 2 semanas * 6 días hábiles (lunes a sábado)
+      }
+    }
+
+    // Mensual: SOLO el día de cobro mensual (mismo día del mes que fecha de inicio)
+    else if (venta.frecuencia === "mensual") {
+      if (hoy.getDate() === fechaInicio.getDate()) {
+        // Contar cuántos lunes a sábado hay en este mes
+        const year = hoy.getFullYear();
+        const month = hoy.getMonth();
+        let diasHabiles = 0;
+        const diasEnMes = new Date(year, month + 1, 0).getDate();
+        for (let d = 1; d <= diasEnMes; d++) {
+          const dt = new Date(year, month, d);
+          if (dt.getDay() !== 0) diasHabiles++;
+        }
+        totalCobrar += venta.valorDiario * diasHabiles;
       }
     }
   }
-
-  // Determiná qué ventas deberían cobrar HOY
-  for (const ventas of Object.values(ventasPorCliente)) {
-    for (const venta of ventas) {
-      if (!venta.frecuencia || !venta.fechaInicio) continue;
-
-      const fechaInicio = new Date(venta.fechaInicio);
-      const fechaFin = venta.fechaFin ? new Date(venta.fechaFin) : null;
-
-      // Sólo cuentan las ventas activas (hoy entre fechaInicio y fechaFin)
-      if (hoy < fechaInicio) continue;
-      if (fechaFin && hoy > fechaFin) continue;
-
-      // Diaria: siempre cuenta si está activa
-      if (venta.frecuencia === "diaria" || venta.frecuencia === "diario") {
-        totalCobrar += venta.valorDiario;
-      }
-      // Semanal: si hoy es el mismo día de la semana que la fecha de inicio
-      else if (venta.frecuencia === "semanal") {
-        if (hoy.getDay() === fechaInicio.getDay()) {
-          totalCobrar += venta.valorDiario;
-        }
-      }
-      // Quincenal: si hoy es el día de inicio o múltiplo de 15 días desde inicio
-      else if (venta.frecuencia === "quincenal") {
-        const diffDays = Math.floor(
-          (hoy.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        if (diffDays >= 0 && diffDays % 15 === 0) {
-          totalCobrar += venta.valorDiario;
-        }
-      }
-      // Mensual: si hoy es el mismo día del mes que la fecha de inicio
-      else if (venta.frecuencia === "mensual") {
-        if (hoy.getDate() === fechaInicio.getDate()) {
-          totalCobrar += venta.valorDiario;
-        }
-      }
-    }
-  }
+}
 
   const totalCobrado = totalEfectivo + totalTransferencia;
   setResumenDiario({
