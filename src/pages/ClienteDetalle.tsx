@@ -298,8 +298,8 @@ export default function ClienteDetalle() {
   <tr>
     <th style={{ padding: 10 }}>Producto</th>
     <th style={{ padding: 10 }}>Frecuencia</th>
-    <th style={{ padding: 10 }}>Días</th>
-    <th style={{ padding: 10 }}>Valor Diario</th>
+    <th style={{ padding: 10 }}>Cuota</th>
+    <th style={{ padding: 10 }}>Valor de la cuota</th>
     <th style={{ padding: 10 }}>Inicio</th>
     <th style={{ padding: 10 }}>Fin</th>
     <th style={{ padding: 10 }}>Vendedor</th>
@@ -516,26 +516,85 @@ export default function ClienteDetalle() {
   <option value="quincenal">Quincenal</option>
   <option value="mensual">Mensual</option>
 </select>
-          <input
-            type="number"
-            placeholder="Días"
-            value={dias}
-            onChange={(e) => setDias(+e.target.value)}
-            style={{ display: "block", marginBottom: 10, width: "100%" }}
-          />
-          <input
-            type="number"
-            placeholder="Valor Diario"
-            value={valorDiario}
-            onChange={(e) => setValorDiario(+e.target.value)}
-            style={{ display: "block", marginBottom: 10, width: "100%" }}
-          />
+          <label style={{ marginBottom: 4, fontWeight: 500 }}>
+  {frecuencia === "diaria"
+    ? "Cantidad de días"
+    : frecuencia === "semanal"
+    ? "Cantidad de semanas"
+    : frecuencia === "quincenal"
+    ? "Cantidad de quincenas"
+    : frecuencia === "mensual"
+    ? "Cantidad de meses"
+    : "Cantidad de cuotas"}
+</label>
+<input
+  type="number"
+  min={1}
+  placeholder={
+    frecuencia === "diaria"
+      ? "Ej: 210"
+      : frecuencia === "semanal"
+      ? "Ej: 30"
+      : frecuencia === "quincenal"
+      ? "Ej: 15"
+      : frecuencia === "mensual"
+      ? "Ej: 7"
+      : ""
+  }
+  value={dias}
+  onChange={(e) => setDias(+e.target.value)}
+  style={{ display: "block", marginBottom: 10, width: "100%" }}
+/>
+
+<label style={{ marginBottom: 4, fontWeight: 500 }}>
+  {frecuencia === "diaria"
+    ? "Valor de la cuota diaria"
+    : frecuencia === "semanal"
+    ? "Valor de la cuota semanal"
+    : frecuencia === "quincenal"
+    ? "Valor de la cuota quincenal"
+    : frecuencia === "mensual"
+    ? "Valor de la cuota mensual"
+    : "Valor de la cuota"}
+</label>
+<input
+  type="number"
+  min={1}
+  placeholder={
+    frecuencia === "diaria"
+      ? "Monto por día"
+      : frecuencia === "semanal"
+      ? "Monto por semana"
+      : frecuencia === "quincenal"
+      ? "Monto por quincena"
+      : frecuencia === "mensual"
+      ? "Monto por mes"
+      : ""
+  }
+  value={valorDiario}
+  onChange={(e) => setValorDiario(+e.target.value)}
+  style={{ display: "block", marginBottom: 10, width: "100%" }}
+/>
           <input
             type="date"
             value={fechaInicio}
             onChange={(e) => setFechaInicio(e.target.value)}
             style={{ display: "block", marginBottom: 10, width: "100%" }}
           />
+          {frecuencia && (
+  <div style={{ marginBottom: 10, color: "#2548B1" }}>
+    <b>Recordá:</b>{" "}
+    {frecuencia === "diaria"
+      ? "Ingresá la cantidad de días y el valor de la cuota diaria."
+      : frecuencia === "semanal"
+      ? "Ingresá la cantidad de semanas y el valor de la cuota semanal (toda la semana, NO un solo día)."
+      : frecuencia === "quincenal"
+      ? "Ingresá la cantidad de quincenas y el valor de la cuota quincenal (dos semanas, NO un solo día)."
+      : frecuencia === "mensual"
+      ? "Ingresá la cantidad de meses y el valor de la cuota mensual (todo el mes, NO un solo día)."
+      : ""}
+  </div>
+)}
           <button onClick={handleConfirmarVenta}>Confirmar Venta</button>{" "}
           <button onClick={() => setAgregandoVenta(false)}>Cancelar</button>
         </div>

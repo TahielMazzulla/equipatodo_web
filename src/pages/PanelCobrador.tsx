@@ -187,8 +187,6 @@ for (const pagos of Object.values(pagosPorVenta)) {
   }
 }
 
-// Calculá lo que debería cobrar hoy (acumula solo días hábiles, lunes a sábado)
-// Calculá lo que debería cobrar hoy (solo lunes a sábado, nunca domingos)
 for (const ventas of Object.values(ventasPorCliente)) {
   for (const venta of ventas) {
     if (!venta.frecuencia || !venta.fechaInicio) continue;
@@ -200,39 +198,39 @@ for (const ventas of Object.values(ventasPorCliente)) {
     if (hoy < fechaInicio) continue;
     if (fechaFin && hoy > fechaFin) continue;
 
-    // Diaria: Suma solo de lunes a sábado
+    // ------ DIARIA ------
     if ((venta.frecuencia === "diaria" || venta.frecuencia === "diario") && hoy.getDay() !== 0) {
       totalCobrar += venta.valorDiario;
     }
 
-    // Semanal: SOLO el día de cobro semanal (el mismo día de la semana que fecha de inicio)
+    // ------ SEMANAL ------
     else if (venta.frecuencia === "semanal") {
-      if (hoy.getDay() === fechaInicio.getDay()) {
-        totalCobrar += venta.valorDiario * 6; // 6 cuotas acumuladas para la semana (lunes a sábado)
+      // El día de la semana debe ser igual al de la fecha de inicio,
+      // Y la cantidad de semanas transcurridas debe ser un múltiplo de 7 días.
+      const diffDays = Math.floor((hoy.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
+      if (
+        hoy.getDay() === fechaInicio.getDay() &&
+        diffDays % 7 === 0
+      ) {
+        totalCobrar += venta.valorDiario;
       }
     }
 
-    // Quincenal: SOLO el día de cobro quincenal (cada 15 días desde inicio)
+    // ------ QUINCENAL ------
     else if (venta.frecuencia === "quincenal") {
       const diffDays = Math.floor((hoy.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays >= 0 && diffDays % 15 === 0) {
-        totalCobrar += venta.valorDiario * 12; // 2 semanas * 6 días hábiles (lunes a sábado)
+      if (
+        hoy.getDay() === fechaInicio.getDay() &&
+        diffDays % 14 === 0
+      ) {
+        totalCobrar += venta.valorDiario;
       }
     }
 
-    // Mensual: SOLO el día de cobro mensual (mismo día del mes que fecha de inicio)
+    // ------ MENSUAL ------
     else if (venta.frecuencia === "mensual") {
       if (hoy.getDate() === fechaInicio.getDate()) {
-        // Contar cuántos lunes a sábado hay en este mes
-        const year = hoy.getFullYear();
-        const month = hoy.getMonth();
-        let diasHabiles = 0;
-        const diasEnMes = new Date(year, month + 1, 0).getDate();
-        for (let d = 1; d <= diasEnMes; d++) {
-          const dt = new Date(year, month, d);
-          if (dt.getDay() !== 0) diasHabiles++;
-        }
-        totalCobrar += venta.valorDiario * diasHabiles;
+        totalCobrar += venta.valorDiario;
       }
     }
   }
