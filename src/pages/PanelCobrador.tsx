@@ -191,7 +191,8 @@ for (const ventas of Object.values(ventasPorCliente)) {
   for (const venta of ventas) {
     if (!venta.frecuencia || !venta.fechaInicio) continue;
 
-    const fechaInicio = new Date(venta.fechaInicio);
+    const partes = venta.fechaInicio.split("-");
+const fechaInicio = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
     const fechaFin = venta.fechaFin ? new Date(venta.fechaFin) : null;
 
     // Solo ventas activas
