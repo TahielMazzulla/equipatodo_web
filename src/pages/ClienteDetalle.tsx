@@ -150,6 +150,13 @@ export default function ClienteDetalle() {
     setValorDiario(0);
     setFechaInicio("");
   }
+  // Helper para obtener la fecha local de Argentina en formato YYYY-MM-DD
+function getArgentinaDateStr(date = new Date()) {
+  const offset = -3; // GMT-3
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+  const argTime = new Date(utc + 3600000 * offset);
+  return argTime.toISOString().split("T")[0];
+}
 
   async function registrarPago(ventaId: string, _: number) {
     if (!id) return;
@@ -165,7 +172,7 @@ export default function ClienteDetalle() {
     });
   
     await addDoc(pagosRef, {
-      fecha: ahora.toISOString().split("T")[0],
+      fecha: getArgentinaDateStr(ahora),
       hora,
       monto,
       formaPago: `efectivo: $${efectivo}, transf: $${transferencia}`,
@@ -173,6 +180,19 @@ export default function ClienteDetalle() {
       transferencia,
       creadoEn: serverTimestamp(),
     });
+    // ---- NUEVO: Guardar también en la colección global 'pagos' ----
+  await addDoc(collection(db, "pagos"), {
+    clienteId: id,
+    ventaId,
+    cobrador: cliente?.cobrador || "Sin asignar",
+    fecha: getArgentinaDateStr(ahora),
+    hora,
+    monto,
+    efectivo,
+    transferencia,
+    formaPago: `efectivo: $${efectivo}, transf: $${transferencia}`,
+    creadoEn: serverTimestamp(),
+  });
   
     const snapPagos = await getDocs(pagosRef);
     const nuevosPagos = snapPagos.docs

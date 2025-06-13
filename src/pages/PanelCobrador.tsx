@@ -29,6 +29,13 @@ interface Venta {
   frecuencia?: string;
   vendedor?: string;
 }
+// Helper para obtener la fecha local de Argentina en formato YYYY-MM-DD
+function getArgentinaDateStr(date = new Date()) {
+  const offset = -3; // GMT-3
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+  const argTime = new Date(utc + 3600000 * offset);
+  return argTime.toISOString().split("T")[0];
+}
 
 export default function PanelCobrador() {
   const navigate = useNavigate();
@@ -51,6 +58,7 @@ const igualDia = (a: Date, b: Date) =>
   a.getMonth() === b.getMonth() &&
   a.getFullYear() === b.getFullYear();
   const [mostrarHistorial, setMostrarHistorial] = useState<Record<string, boolean>>({});
+  const [pagosCobrador, setPagosCobrador] = useState<any[]>([]);
 
 // Tu función para cerrar sesión:
   function handleLogout() {
@@ -122,6 +130,25 @@ const igualDia = (a: Date, b: Date) =>
     fetchClientes();
   }, [usuario]);
   useEffect(() => {
+  if (!usuario?.nombre) return;
+
+  // Obtené la fecha local de Argentina (usando tu función)
+  const fechaHoy = getArgentinaDateStr();
+
+  // Armá la query para traer solo los pagos de este cobrador y de hoy
+  async function fetchPagosCobrador() {
+    const q = query(
+      collection(db, "pagos"),
+      where("cobrador", "==", usuario.nombre),
+      where("fecha", "==", fechaHoy)
+    );
+    const snap = await getDocs(q);
+    setPagosCobrador(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  }
+
+  fetchPagosCobrador();
+}, [usuario]);
+  useEffect(() => {
   async function fetchPagos() {
     const pagosMap: Record<string, any[]> = {};
     for (const cliente of clientes) {
@@ -148,14 +175,14 @@ async function registrarPago(clienteId: string, ventaId: string) {
   });
 
   await addDoc(pagosRef, {
-    fecha: ahora.toISOString().split("T")[0],
-    hora,
-    monto,
-    formaPago: `efectivo: $${efectivo}, transf: $${transferencia}`,
-    efectivo,
-    transferencia,
-    creadoEn: serverTimestamp(),
-  });
+  fecha: getArgentinaDateStr(ahora),
+  hora,
+  monto,
+  formaPago: `efectivo: $${efectivo}, transf: $${transferencia}`,
+  efectivo,
+  transferencia,
+  creadoEn: serverTimestamp(),
+});
 
   // Refrescar pagos
   const pagosSnap = await getDocs(pagosRef);
@@ -171,7 +198,7 @@ async function registrarPago(clienteId: string, ventaId: string) {
 }
 useEffect(() => {
   const hoy = new Date();
-  const hoyStr = hoy.toISOString().split("T")[0];
+  const hoyStr = getArgentinaDateStr(hoy);
   let totalEfectivo = 0;
   let totalTransferencia = 0;
   let totalCobrar = 0;
@@ -252,6 +279,16 @@ const fechaInicio = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(pa
     setPorcentajeCobranza(0);
   }
 }, [pagosPorVenta, ventasPorCliente]);
+// --- Calcular resumen rápido usando pagosCobrador ---
+let totalEfectivoCobrador = 0;
+let totalTransferenciaCobrador = 0;
+let totalGeneralCobrador = 0;
+
+for (const pago of pagosCobrador) {
+  totalEfectivoCobrador += pago.efectivo || 0;
+  totalTransferenciaCobrador += pago.transferencia || 0;
+}
+totalGeneralCobrador = totalEfectivoCobrador + totalTransferenciaCobrador;
 
   return (
   <div style={{ padding: 20 }}>
@@ -274,9 +311,9 @@ const fechaInicio = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(pa
     </div>
     <div className="tarjeta">
   <h3>Resumen del día (hoy)</h3>
-  <p><strong>Total cobrado:</strong> ${resumenDiario.total.toLocaleString()}</p>
-  <p><strong>Efectivo:</strong> ${resumenDiario.efectivo.toLocaleString()}</p>
-  <p><strong>Transferencia:</strong> ${resumenDiario.transferencia.toLocaleString()}</p>
+  <p><strong>Total cobrado:</strong> ${totalGeneralCobrador.toLocaleString()}</p>
+  <p><strong>Efectivo:</strong> ${totalEfectivoCobrador.toLocaleString()}</p>
+  <p><strong>Transferencia:</strong> ${totalTransferenciaCobrador.toLocaleString()}</p>
 </div>
 <p>
   <strong>Porcentaje de cobranza diaria:</strong>

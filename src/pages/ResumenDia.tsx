@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -26,13 +26,23 @@ function soloFechasUnicas(arr: string[]): string[] {
 
   return Array.from(new Set(arr)).sort((a, b) => b.localeCompare(a));
 }
+// --- FECHA LOCAL ARGENTINA ---
+function getFechaLocalArgentina() {
+  const ahora = new Date();
+  // Esto devuelve la fecha en formato YYYY-MM-DD, pero usando la zona horaria de Argentina
+  const opciones: Intl.DateTimeFormatOptions = { 
+  timeZone: "America/Argentina/Buenos_Aires", 
+  year: "numeric", 
+  month: "2-digit", 
+  day: "2-digit" 
+};
+  const partes = new Intl.DateTimeFormat('en-CA', opciones).formatToParts(ahora);
+  return `${partes.find(p => p.type === 'year')!.value}-${partes.find(p => p.type === 'month')!.value}-${partes.find(p => p.type === 'day')!.value}`;
+}
 
 export default function ResumenDia() {
   const [pagos, setPagos] = useState<Pago[]>([]);
-  const [fechaSeleccionada, setFechaSeleccionada] = useState(() => {
-    const hoy = new Date().toISOString().split("T")[0];
-    return hoy;
-  });
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(() => getFechaLocalArgentina());
   const [fechasDisponibles, setFechasDisponibles] = useState<string[]>([]);
 
   const resumenRef = useRef<HTMLDivElement>(null);
@@ -78,29 +88,29 @@ const mesFin = finMes.toISOString().split("T")[0];
 
   useEffect(() => {
   async function fetchPagosPorFecha() {
-    const clientesSnap = await getDocs(collection(db, "clientes"));
-    const todosLosPagos: Pago[] = [];
-    const todasLasFechas: string[] = [];
+    // Leer solo los pagos de la colección global /pagos (¡mucho más rápido!)
+    const q = query(
+      collection(db, "pagos"),
+      where("fecha", "==", fechaSeleccionada)
+    );
+    const snap = await getDocs(q);
+    const pagosHoy: Pago[] = [];
+    const fechas: string[] = [];
 
-    for (const clienteDoc of clientesSnap.docs) {
-      const clienteId = clienteDoc.id;
-      const cobrador = (clienteDoc.data() as Cliente).cobrador || "Sin asignar";
+    // Traer fechas únicas (por si querés armar el calendario)
+    const snapAll = await getDocs(collection(db, "pagos"));
+    snapAll.docs.forEach(doc => {
+      const pago = doc.data() as Pago;
+      if (pago.fecha) fechas.push(pago.fecha);
+    });
 
-      const ventasSnap = await getDocs(collection(db, "clientes", clienteId, "ventas"));
-      for (const ventaDoc of ventasSnap.docs) {
-        const pagosSnap = await getDocs(collection(db, "clientes", clienteId, "ventas", ventaDoc.id, "pagos"));
-        for (const pagoDoc of pagosSnap.docs) {
-          const pago = pagoDoc.data() as Pago;
-          todasLasFechas.push(pago.fecha); // <-- guardamos todas las fechas!
-          if (pago.fecha === fechaSeleccionada) {
-            todosLosPagos.push({ ...pago, cobrador });
-          }
-        }
-      }
-    }
+    snap.docs.forEach(doc => {
+      const pago = doc.data() as Pago;
+      pagosHoy.push(pago);
+    });
 
-    setPagos(todosLosPagos);
-    setFechasDisponibles(soloFechasUnicas(todasLasFechas));
+    setPagos(pagosHoy);
+    setFechasDisponibles(soloFechasUnicas(fechas));
   }
 
   fetchPagosPorFecha();
