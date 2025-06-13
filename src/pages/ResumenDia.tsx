@@ -3,6 +3,9 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { es } from "date-fns/locale";
 import { useRef } from "react";
 const AZUL_EQUIPATODO = "#294899";
 const GRIS_EQUIPATODO = "#9D9D9C";
@@ -38,6 +41,18 @@ function getFechaLocalArgentina() {
 };
   const partes = new Intl.DateTimeFormat('en-CA', opciones).formatToParts(ahora);
   return `${partes.find(p => p.type === 'year')!.value}-${partes.find(p => p.type === 'month')!.value}-${partes.find(p => p.type === 'day')!.value}`;
+}
+// Fuera del componente
+function getArgentinaDateStr(date = new Date()) {
+  const offset = -3; // GMT-3
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+  const argTime = new Date(utc + 3600000 * offset);
+  return argTime.toISOString().split("T")[0];
+}
+function stringToArgentinaDate(fecha: string) {
+  // Convierte "YYYY-MM-DD" en un Date siempre del día correcto en Argentina (GMT-3)
+  const [year, month, day] = fecha.split("-").map(Number);
+  return new Date(year, month - 1, day, 3); // 3am evita desfases por zona horaria
 }
 
 export default function ResumenDia() {
@@ -182,42 +197,24 @@ const transferencia = typeof pago.transferencia === "number" ? pago.transferenci
   Exportar a PDF
 </button>
 <div style={{
+  margin: "0 auto 18px auto",
+  maxWidth: 320,
   display: "flex",
-  gap: 10,
-  marginBottom: 20,
-  overflowX: "auto",
-  paddingBottom: 8,
-  maxWidth: 700,
-  marginLeft: "auto",
-  marginRight: "auto",
-  whiteSpace: "nowrap"
+  justifyContent: "center"
 }}>
-  {fechasDisponibles.length > 0 ? (
-    fechasDisponibles.map(fecha => (
-      <button
-        key={fecha}
-        onClick={() => setFechaSeleccionada(fecha)}
-        style={{
-          padding: "6px 15px",
-          borderRadius: 6,
-          border: fecha === fechaSeleccionada ? `2px solid ${AZUL_EQUIPATODO}` : "1px solid #bbb",
-          background: fecha === fechaSeleccionada ? AZUL_EQUIPATODO : "#fff",
-          color: fecha === fechaSeleccionada ? "#fff" : AZUL_EQUIPATODO,
-          fontWeight: 700,
-          fontFamily: FUENTE_EQUIPATODO,
-          cursor: "pointer",
-          boxShadow: fecha === fechaSeleccionada ? "0 1px 8px #29489922" : "none",
-          marginRight: 6,
-          minWidth: 110,
-          whiteSpace: "nowrap"
-        }}
-      >
-        {fecha}
-      </button>
-    ))
-  ) : (
-    <span style={{ color: "#999", fontStyle: "italic" }}>No hay días anteriores</span>
-  )}
+  <DatePicker
+    selected={fechaSeleccionada ? stringToArgentinaDate(fechaSeleccionada) : null}
+    onChange={(date: Date | null) => {
+      if (date) setFechaSeleccionada(getArgentinaDateStr(date));
+    }}
+    dateFormat="yyyy-MM-dd"
+    maxDate={new Date()}
+    showPopperArrow={false}
+    placeholderText="Elegí una fecha"
+    className="datepicker-equipatodo"
+    calendarStartDay={1} // Lunes
+    locale={es}
+  />
 </div>
       <div
   ref={resumenRef}
