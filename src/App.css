@@ -103,3 +103,82 @@ hr {
   border-bottom: 1.5px solid #e5e5e5;
   margin: 25px 0;
 }
+/* Estilo personalizado para react-datepicker */
+.datepicker-equipatodo {
+  width: 100%;
+  font-family: 'League Spartan', Arial, sans-serif;
+  font-size: 1.12rem;
+  background: #f8faff;
+  color: #294899;
+  border: 2px solid #29489944;
+  border-radius: 12px;
+  padding: 10px 18px;
+  outline: none;
+  transition: border 0.2s;
+  box-shadow: 0 1px 8px #29489918;
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.datepicker-equipatodo:focus {
+  border-color: #294899;
+}
+
+/* Personaliza el popup del calendario */
+.react-datepicker {
+  font-family: 'League Spartan', Arial, sans-serif;
+  border-radius: 18px !important;
+  border: 2px solid #29489944 !important;
+  box-shadow: 0 6px 32px 0 #2948991a !important;
+  overflow: hidden !important;
+}
+
+.react-datepicker__header {
+  background-color: #294899 !important;
+  color: #fff !important;
+  border-radius: 18px 18px 0 0 !important;
+  border-bottom: none !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  color: #fff !important;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.react-datepicker__day,
+.react-datepicker__day-name {
+  color: #294899 !important;
+  font-weight: 600;
+  font-size: 1.07rem;
+  border-radius: 50% !important;
+  transition: background 0.2s, color 0.2s;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: #294899 !important;
+  color: #fff !important;
+  border-radius: 50% !important;
+}
+
+.react-datepicker__day:hover {
+  background: #9d9d9c22 !important;
+}
+
+.react-datepicker__today-button {
+  background: #294899;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0 0 18px 18px;
+}
+
+.react-datepicker__day--today {
+  border: 1.5px solid #294899 !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}
