@@ -29,12 +29,14 @@ interface Venta {
   frecuencia?: string;
   vendedor?: string;
 }
-// Helper para obtener la fecha local de Argentina en formato YYYY-MM-DD
+
 function getArgentinaDateStr(date = new Date()) {
-  const offset = -3; // GMT-3
-  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
-  const argTime = new Date(utc + 3600000 * offset);
-  return argTime.toISOString().split("T")[0];
+  const opciones = { timeZone: "America/Argentina/Buenos_Aires" };
+  const local = new Date(date.toLocaleString("en-US", opciones));
+  const yyyy = local.getFullYear();
+  const mm = String(local.getMonth() + 1).padStart(2, '0');
+  const dd = String(local.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export default function PanelCobrador() {
@@ -183,6 +185,21 @@ async function registrarPago(clienteId: string, ventaId: string) {
   transferencia,
   creadoEn: serverTimestamp(),
 });
+// --- AGREGA ESTE BLOQUE DESPUÉS DEL PRIMER addDoc ---
+  await addDoc(collection(db, "pagos"), {
+    fecha: getArgentinaDateStr(ahora),
+    hora,
+    monto,
+    formaPago: `efectivo: $${efectivo}, transf: $${transferencia}`,
+    efectivo,
+    transferencia,
+    creadoEn: serverTimestamp(),
+    clienteId,
+    ventaId,
+    cobrador: usuario.nombre,
+    clienteNombre: clientes.find(c => c.id === clienteId)?.nombre || "",
+    producto: ventasPorCliente[clienteId]?.find(v => v.id === ventaId)?.producto || "",
+  });
 
   // Refrescar pagos
   const pagosSnap = await getDocs(pagosRef);
