@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PanelCobrador from "./pages/PanelCobrador";
+import MigrarPagos from "./pages/MigrarPagos";
 import './App.css';
 
 
@@ -88,6 +89,8 @@ function AppContent() {
     </>
   );
 }
+
+<Route path="/migrar-pagos" element={<MigrarPagos />} />
 
 export default function App() {
   return (
