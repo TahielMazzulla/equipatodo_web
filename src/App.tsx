@@ -75,6 +75,14 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="/migrar-pagos"
+  element={
+    <ProtectedRoute roleAllowed="admin">
+      <MigrarPagos />
+    </ProtectedRoute>
+  }
+/>
 
         {/* Ruta solo para COBRADOR */}
         <Route
@@ -90,7 +98,7 @@ function AppContent() {
   );
 }
 
-<Route path="/migrar-pagos" element={<MigrarPagos />} />
+
 
 export default function App() {
   return (
