@@ -8,7 +8,6 @@ import Login from "./pages/Login";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PanelCobrador from "./pages/PanelCobrador";
-import MigrarPagos from "./pages/MigrarPagos";
 import './App.css';
 
 
@@ -75,14 +74,7 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
-        <Route
-  path="/migrar-pagos"
-  element={
-    <ProtectedRoute roleAllowed="admin">
-      <MigrarPagos />
-    </ProtectedRoute>
-  }
-/>
+
 
         {/* Ruta solo para COBRADOR */}
         <Route
