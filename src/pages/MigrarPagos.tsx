@@ -1,60 +1,55 @@
-// src/pages/MigrarPagos.tsx
-import { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { getDocs, collection, addDoc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
-import { collection, getDocs, addDoc, query } from "firebase/firestore";
+
 
 export default function MigrarPagos() {
-  const [estado, setEstado] = useState("Esperando...");
-  const [copiados, setCopiados] = useState(0);
+  const [status, setStatus] = useState<string>("");
 
-  async function migrar() {
-    setEstado("Buscando clientes...");
-    const clientesSnap = await getDocs(collection(db, "clientes"));
-
-    let count = 0;
-    for (const clienteDoc of clientesSnap.docs) {
-      const ventasSnap = await getDocs(collection(db, "clientes", clienteDoc.id, "ventas"));
-      for (const ventaDoc of ventasSnap.docs) {
-        const pagosSnap = await getDocs(collection(db, "clientes", clienteDoc.id, "ventas", ventaDoc.id, "pagos"));
-        for (const pagoDoc of pagosSnap.docs) {
-          const pagoData = pagoDoc.data();
-
-          // Ver si ya existe (por fecha, monto, cliente y venta)
-          const q = query(
-            collection(db, "pagos")
-          );
-          const ya = await getDocs(q);
-          const existe = ya.docs.some(p => 
-            p.data().fecha === pagoData.fecha &&
-            p.data().monto === pagoData.monto &&
-            p.data().clienteId === clienteDoc.id &&
-            p.data().ventaId === ventaDoc.id
-          );
-          if (existe) continue;
-
-          await addDoc(collection(db, "pagos"), {
-            ...pagoData,
-            clienteId: clienteDoc.id,
-            ventaId: ventaDoc.id,
-            cobrador: clienteDoc.data().cobrador || "",
-            clienteNombre: clienteDoc.data().nombre || "",
-            producto: ventaDoc.data().producto || "",
-          });
-          count++;
+  const handleMigrar = async () => {
+    setStatus("Migrando...");
+    try {
+      // Buscar todos los pagos en colecciones anidadas
+      const clientesSnap = await getDocs(collection(db, "clientes"));
+      let totalPagos = 0;
+      for (const clienteDoc of clientesSnap.docs) {
+        const ventasSnap = await getDocs(collection(db, "clientes", clienteDoc.id, "ventas"));
+        for (const ventaDoc of ventasSnap.docs) {
+          const pagosSnap = await getDocs(collection(db, "clientes", clienteDoc.id, "ventas", ventaDoc.id, "pagos"));
+          for (const pagoDoc of pagosSnap.docs) {
+            const pagoData = pagoDoc.data();
+            // Verificá si ya existe el pago (por ejemplo, por fecha+hora+cliente)
+            // Si no existe, agregalo a la colección global
+            await addDoc(collection(db, "pagos"), {
+              ...pagoData,
+              clienteId: clienteDoc.id,
+              ventaId: ventaDoc.id,
+              clienteNombre: clienteDoc.data().nombre || "",
+              producto: ventaDoc.data().producto || "",
+              cobrador: clienteDoc.data().cobrador || "",
+            });
+            totalPagos++;
+          }
         }
       }
+      setStatus(`¡Listo! Migrados ${totalPagos} pagos.`);
+    } catch (e) {
+      setStatus("Ocurrió un error en la migración.");
+      console.error(e);
     }
-    setCopiados(count);
-    setEstado("¡Listo! Pagos migrados: " + count);
-  }
+  };
 
   return (
-    <div style={{padding: 40}}>
-      <h1>Migrar pagos viejos a /pagos</h1>
-      <p>{estado}</p>
-      <button onClick={migrar}>Migrar pagos</button>
-      {copiados > 0 && <p style={{color: "green"}}>Total copiados: {copiados}</p>}
-      <p style={{color: "#c00"}}>⚠️ Esta herramienta es temporal, borrala después de migrar.</p>
+    <div style={{ padding: 40 }}>
+      <h1>Migrar pagos antiguos</h1>
+      <button onClick={handleMigrar} style={{ padding: 18, borderRadius: 8, fontSize: 18, background: "#294899", color: "#fff", fontWeight: 700 }}>
+        Migrar pagos a /pagos
+      </button>
+      <p style={{ marginTop: 25 }}>{status}</p>
+      <div style={{ marginTop: 40, color: "#555" }}>
+        <b>¡CUIDADO!</b> No hagas click dos veces.  
+        <br />El proceso puede demorar unos segundos. Solo migrá una vez.
+      </div>
     </div>
   );
 }
