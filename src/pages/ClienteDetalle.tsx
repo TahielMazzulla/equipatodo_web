@@ -44,6 +44,8 @@ interface Pago {
   hora?: string;
   monto: number;
   formaPago: string;
+  efectivo?: number;
+  transferencia?: number;
   creadoEn: any;
 }
 
@@ -71,6 +73,10 @@ export default function ClienteDetalle() {
   const [fechaInicio, setFechaInicio] = useState("");
   const [frecuencia, setFrecuencia] = useState("");
   const [vendedor, setVendedor] = useState("");
+  // ==== Estados para edición de pagos ====
+  const [pagoEditando, setPagoEditando] = useState<{ ventaId: string; pagoId: string } | null>(null);
+  const [valoresPagoEditados, setValoresPagoEditados] = useState<{ fecha: string; monto: number; efectivo: number; transferencia: number }>({ fecha: "", monto: 0, efectivo: 0, transferencia: 0 });
+  const [editandoFormaPago, setEditandoFormaPago] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -249,6 +255,90 @@ function getArgentinaDateStr(date = new Date()) {
     alert("Ocurrió un error al intentar eliminar la venta.");
   }
 }
+// === FUNCIÓN PARA GUARDAR EDICIÓN DE PAGO ===
+async function guardarEdicionPago() {
+  if (!id || !pagoEditando) return;
+
+  const { ventaId, pagoId } = pagoEditando;
+  const pagosRef = doc(db, "clientes", id, "ventas", ventaId, "pagos", pagoId);
+
+  // Actualiza el pago en la subcolección del cliente
+  await updateDoc(pagosRef, {
+    fecha: valoresPagoEditados.fecha,
+    monto: valoresPagoEditados.monto,
+    efectivo: valoresPagoEditados.efectivo,
+    transferencia: valoresPagoEditados.transferencia,
+    formaPago: `efectivo: $${valoresPagoEditados.efectivo}, transf: $${valoresPagoEditados.transferencia}`,
+  });
+
+  // También buscar y actualizarlo en la colección global 'pagos'
+  // (Opcional: podés tener pagos duplicados allí)
+  const pagosGlobalSnap = await getDocs(collection(db, "pagos"));
+  for (const pagoDoc of pagosGlobalSnap.docs) {
+    const d = pagoDoc.data();
+    if (d.clienteId === id && d.ventaId === ventaId && d.creadoEn?.seconds === pagosPorVenta[ventaId]?.find(p=>p.id===pagoId)?.creadoEn?.seconds) {
+      await updateDoc(pagoDoc.ref, {
+        fecha: valoresPagoEditados.fecha,
+        monto: valoresPagoEditados.monto,
+        efectivo: valoresPagoEditados.efectivo,
+        transferencia: valoresPagoEditados.transferencia,
+        formaPago: `efectivo: $${valoresPagoEditados.efectivo}, transf: $${valoresPagoEditados.transferencia}`,
+      });
+    }
+  }
+
+  // Refrescar la lista de pagos de la venta
+  const snapPagos = await getDocs(collection(db, "clientes", id, "ventas", ventaId, "pagos"));
+  const nuevosPagos = snapPagos.docs
+    .map((p: any) => ({ id: p.id, ...(p.data() as Omit<Pago, "id">) }))
+    .sort((a, b) => (b.creadoEn?.seconds ?? 0) - (a.creadoEn?.seconds ?? 0));
+  setPagosPorVenta((prev) => ({ ...prev, [ventaId]: nuevosPagos }));
+
+  setPagoEditando(null);
+}
+// Eliminar cliente completo
+async function eliminarCliente() {
+  if (!cliente) return;
+  const confirmar = window.confirm("¿Seguro que querés eliminar este cliente y TODAS sus ventas y pagos? Esta acción no se puede deshacer.");
+
+  if (!confirmar) return;
+
+  try {
+    // --- Borrar TODAS las ventas y pagos de este cliente ---
+    const ventasRef = collection(db, "clientes", cliente.id, "ventas");
+    const ventasSnap = await getDocs(ventasRef);
+    // --- Borrar de la colección global de pagos ---
+const pagosGlobalRef = collection(db, "pagos");
+const pagosGlobalSnap = await getDocs(pagosGlobalRef);
+for (const pagoDoc of pagosGlobalSnap.docs) {
+  const data = pagoDoc.data();
+  if (data.clienteId === cliente.id) {
+    await deleteDoc(pagoDoc.ref);
+  }
+}
+
+    for (const ventaDoc of ventasSnap.docs) {
+      // Borrar todos los pagos de esta venta
+      const pagosRef = collection(db, "clientes", cliente.id, "ventas", ventaDoc.id, "pagos");
+      const pagosSnap = await getDocs(pagosRef);
+
+      for (const pagoDoc of pagosSnap.docs) {
+        await deleteDoc(pagoDoc.ref);
+      }
+
+      await deleteDoc(ventaDoc.ref); // Borrar la venta en sí
+    }
+
+    // Finalmente, borrar el cliente
+    await deleteDoc(doc(db, "clientes", cliente.id));
+
+    // Redirigir a lista de clientes
+    window.location.href = "/lista"; // O usá navigate("/lista") si usás useNavigate
+  } catch (err) {
+    alert("Error al eliminar cliente: " + err);
+    console.error(err);
+  }
+}
 
   if (!cliente) return <div style={{ padding: 20 }}>Cargando cliente...</div>;
 
@@ -262,13 +352,42 @@ function getArgentinaDateStr(date = new Date()) {
   border: "1px solid #ddd",
   fontFamily: "Montserrat, sans-serif"
 }}>
+  <div style={{
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 16
+}}>
   <h2 style={{
     fontSize: 18,
-    marginBottom: 16,
+    margin: 0,
     color: "#294899"
   }}>
     Detalle del Cliente
   </h2>
+  <button
+    onClick={eliminarCliente}
+    style={{
+      background: "#f44336",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 22px",
+      fontWeight: 700,
+      fontSize: 15,
+      fontFamily: "League Spartan, Montserrat, Arial, sans-serif",
+      marginLeft: 18,
+      boxShadow: "0 4px 18px 0 #f4433636",
+      cursor: "pointer",
+      transition: "background 0.2s"
+    }}
+    onMouseOver={e => e.currentTarget.style.background = "#d32f2f"}
+    onMouseOut={e => e.currentTarget.style.background = "#f44336"}
+    title="Eliminar cliente"
+  >
+    🗑️ Eliminar Cliente
+  </button>
+</div>
 
   <p style={{ marginBottom: 8 }}><strong>Nombre:</strong> {cliente.nombre}</p>
   <p style={{ marginBottom: 8 }}><strong>Comercio:</strong> {cliente.comercio || "—"}</p>
@@ -455,14 +574,85 @@ function getArgentinaDateStr(date = new Date()) {
     {mostrar ? "Ocultar" : "Ver más"}
   </button>
   {mostrar && (
-    <ul style={{ paddingLeft: 16 }}>
-      {pagos.map((p) => (
-        <li key={p.id}>
-          {p.fecha} {p.hora || ""} — ${p.monto.toLocaleString()} ({p.formaPago})
-        </li>
-      ))}
-    </ul>
-  )}
+  <ul style={{ paddingLeft: 16 }}>
+    {pagos.map((p) => (
+      <li key={p.id}>
+        {/* Si este pago está en edición, mostramos formulario */}
+        {pagoEditando && pagoEditando.pagoId === p.id && pagoEditando.ventaId === v.id ? (
+          <form
+            style={{ display: "inline-block", marginBottom: 10 }}
+            onSubmit={e => {
+              e.preventDefault();
+              guardarEdicionPago();
+            }}
+          >
+            <input
+              type="date"
+              value={valoresPagoEditados.fecha}
+              onChange={e => setValoresPagoEditados(val => ({ ...val, fecha: e.target.value }))}
+              style={{ marginRight: 6 }}
+            />
+            <input
+              type="number"
+              value={valoresPagoEditados.efectivo}
+              onChange={e => setValoresPagoEditados(val => ({ ...val, efectivo: +e.target.value }))}
+              placeholder="Efectivo"
+              style={{ width: 90, marginRight: 6 }}
+            />
+            <input
+              type="number"
+              value={valoresPagoEditados.transferencia}
+              onChange={e => setValoresPagoEditados(val => ({ ...val, transferencia: +e.target.value }))}
+              placeholder="Transferencia"
+              style={{ width: 90, marginRight: 6 }}
+            />
+            <input
+              type="number"
+              value={valoresPagoEditados.monto}
+              onChange={e => setValoresPagoEditados(val => ({ ...val, monto: +e.target.value }))}
+              placeholder="Monto total"
+              style={{ width: 90, marginRight: 6 }}
+            />
+            <button type="submit" style={{ marginRight: 4, background: "#294899", color: "white", borderRadius: 5, padding: "4px 10px", border: "none" }}>Guardar</button>
+            <button
+              type="button"
+              onClick={() => setPagoEditando(null)}
+              style={{ background: "#ccc", border: "none", borderRadius: 5, padding: "4px 10px" }}
+            >Cancelar</button>
+          </form>
+        ) : (
+          <>
+            {p.fecha} {p.hora || ""} — ${p.monto.toLocaleString()} ({p.formaPago})
+            <button
+              style={{
+                marginLeft: 10,
+                background: "#294899",
+                color: "#fff",
+                border: "none",
+                borderRadius: 5,
+                padding: "2px 10px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+              onClick={() => {
+                setPagoEditando({ pagoId: p.id, ventaId: v.id });
+                setValoresPagoEditados({
+                  fecha: p.fecha,
+                  monto: p.monto,
+                  efectivo: p.efectivo ?? 0,
+                  transferencia: p.transferencia ?? 0,
+                });
+              }}
+            >
+              Editar
+            </button>
+          </>
+        )}
+      </li>
+    ))}
+  </ul>
+)}
 </td>
                   <td style={{ padding: "8px 10px", borderBottom: "1px solid #eee" }}>
   <input

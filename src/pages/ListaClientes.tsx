@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { db } from "../firebaseConfig";
+import { query, where } from "firebase/firestore"; // Asegurate que esté arriba
 
 interface Cliente {
   id: string;
@@ -31,90 +32,71 @@ const cobradoresUnicos = Array.from(
   const [ventasPorCliente, setVentasPorCliente] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
-    async function fetchData() {
-      const ref = collection(db, "clientes");
-      const snap = await getDocs(ref);
-      const lista = snap.docs.map((doc) => {
-        const data = doc.data() as Omit<Cliente, "id">;
-        return { id: doc.id, ...data };
-      });
-      setClientes(lista);
-      // === Traer las ventas reales de cada cliente y guardarlas en el estado ===
-const ventasPorCliente: Record<string, any[]> = {};
-for (const cliente of lista) {
-  const ventasSnap = await getDocs(collection(db, "clientes", cliente.id, "ventas"));
-  ventasPorCliente[cliente.id] = ventasSnap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-}
-setVentasPorCliente(ventasPorCliente);
-      // Calcular estado de cada venta
-const calcularEstadoPagos = async () => {
-  const nuevosEstados: Record<string, string> = {};
+  async function fetchData() {
+    // 1. Traer todos los clientes
+    const ref = collection(db, "clientes");
+    const snap = await getDocs(ref);
+    const lista = snap.docs.map((doc) => {
+      const data = doc.data() as Omit<Cliente, "id">;
+      return { id: doc.id, ...data };
+    });
+    setClientes(lista);
 
-  for (const cliente of lista) {
-    const ventasSnap = await getDocs(collection(db, "clientes", cliente.id, "ventas"));
-    for (const ventaDoc of ventasSnap.docs) {
-      const ventaId = ventaDoc.id;
-      const venta = ventaDoc.data();
-      const valorDiario = venta.valorDiario;
+    // 2. Traer ventas de cada cliente
+    const ventasPorCliente: Record<string, any[]> = {};
+    for (const cliente of lista) {
+      const ventasSnap = await getDocs(collection(db, "clientes", cliente.id, "ventas"));
+      ventasPorCliente[cliente.id] = ventasSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    }
+    setVentasPorCliente(ventasPorCliente);
 
-      const pagosSnap = await getDocs(collection(db, "clientes", cliente.id, "ventas", ventaId, "pagos"));
-      const pagos = pagosSnap.docs.map(p => p.data());
-      const hoy = new Date().toISOString().split("T")[0];
-      const pagosHoy = pagos.filter(p => p.fecha === hoy);
+    // 3. Obtener la fecha de hoy en formato Argentina (GMT-3)
+    function getArgentinaDateStr(date = new Date()) {
+      const offset = -3;
+      const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+      const argTime = new Date(utc + 3600000 * offset);
+      return argTime.toISOString().split("T")[0];
+    }
+    const hoy = getArgentinaDateStr();
 
-      const montoTotalHoy = pagosHoy.reduce((acc, p) => acc + (p.monto || 0), 0);
+    // 4. Traer TODOS los pagos de HOY desde la colección global "/pagos"
+    const { query, where } = await import("firebase/firestore"); // Solo si no está arriba
+    const pagosSnap = await getDocs(
+      query(collection(db, "pagos"), where("fecha", "==", hoy))
+    );
+    const pagosHoyTodos = pagosSnap.docs.map(d => d.data());
 
-      if (montoTotalHoy >= valorDiario) {
-        nuevosEstados[ventaId] = "verde";
-      } else if (montoTotalHoy > 0 && montoTotalHoy < valorDiario) {
-        nuevosEstados[ventaId] = "amarillo";
-      } else {
-        nuevosEstados[ventaId] = "rojo";
+    // 5. Indexar pagos por ventaId
+    const pagosPorVentaHoy: Record<string, any[]> = {};
+    for (const pago of pagosHoyTodos) {
+      if (!pago.ventaId) continue;
+      if (!pagosPorVentaHoy[pago.ventaId]) pagosPorVentaHoy[pago.ventaId] = [];
+      pagosPorVentaHoy[pago.ventaId].push(pago);
+    }
+
+    // 6. Calcular el estado de cada cuadradito por cliente
+    const pagosCliente: Record<string, { estados: string[] }> = {};
+
+    for (const cliente of lista) {
+      const ventas = ventasPorCliente[cliente.id] || [];
+      const estados: string[] = [];
+      for (const venta of ventas) {
+        const pagosDeHoy = pagosPorVentaHoy[venta.id] || [];
+        const totalHoy = pagosDeHoy.reduce((sum, p) => sum + (p.monto || 0), 0);
+        if (totalHoy === 0) estados.push("rojo");
+        else if (totalHoy < venta.valorDiario) estados.push("amarillo");
+        else estados.push("verde");
       }
+      pagosCliente[cliente.id] = { estados };
     }
+
+    setPagosPorCliente(pagosCliente);
   }
-
-  setEstadoPagoPorVenta(nuevosEstados);
-};
-
-calcularEstadoPagos();
-      const hoy = new Date().toISOString().split("T")[0];
-const pagosCliente: Record<string, { estados: string[] }> = {};
-
-for (const cliente of lista) {
-  const ventasSnap = await getDocs(collection(db, "clientes", cliente.id, "ventas"));
-  const estados: string[] = [];
-
-  for (const venta of ventasSnap.docs) {
-    const ventaData = venta.data();
-    const valorDiario = ventaData.valorDiario;
-    const pagosSnap = await getDocs(collection(db, "clientes", cliente.id, "ventas", venta.id, "pagos"));
-
-    const pagosHoy = pagosSnap.docs
-      .map((d) => d.data())
-      .filter((p) => p.fecha === hoy);
-
-    const totalHoy = pagosHoy.reduce((sum, p) => sum + p.monto, 0);
-
-    if (totalHoy === 0) {
-      estados.push("rojo");
-    } else if (totalHoy < valorDiario) {
-      estados.push("amarillo");
-    } else {
-      estados.push("verde");
-    }
-  }
-
-  pagosCliente[cliente.id] = { estados };
-}
-
-setPagosPorCliente(pagosCliente);
-    }
-    fetchData();
-  }, []);
+  fetchData();
+}, []);
 
   return (
     <div
